@@ -24,29 +24,7 @@ def get_current_weather(location):
     }
     # 如果查不到，就返回一个默认提示
     return weather_data.get(location, f"我这边查不到 {location} 的天气数据。")
-import requests # 🌟 新增：导入网络请求库
 
-def get_current_weather(location):
-    print(f"🌍 后台正在通过真实 API 查询城市：{location}")
-    try:
-        # 调用 wttr.in 免费接口
-        # format="%C+%t+%w" 会返回类似 "Clear +5°C 15km/h" 的真实物理数据
-        url = f"https://wttr.in/{location}?format=%C+%t+%w"
-        
-        # 发送网络请求，设置 5 秒超时防止卡死
-        response = requests.get(url, timeout=5)
-        
-        # 如果服务器成功返回了数据 (状态码 200)
-        if response.status_code == 200:
-            real_weather = response.text.strip()
-            # 拿到真实数据后，喂给大模型
-            return f"{location} 的最新真实天气数据是：{real_weather}。"
-        else:
-            return f"抱歉，气象服务器没有找到 {location} 的数据。"
-            
-    except Exception as e:
-        print(f"API 报错: {e}")
-        return "天气接口网络异常，暂时查不到。"
 # 2. 写给大模型看的“工具说明书”
 tools_config = [
     {
