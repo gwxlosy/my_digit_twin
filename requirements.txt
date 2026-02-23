@@ -4,3 +4,4 @@ openai
 langchain
 pypdf
 sentence-transformers
+langchain-text-splitters
