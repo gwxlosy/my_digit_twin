@@ -45,8 +45,8 @@ memory_collection = get_chroma_collection()
 
 # 初始化 DeepSeek 客户端
 # ⚠️ 记得替换你的 API Key
-client = OpenAI(api_key="sk-1214f0721ac2475c8d8cdf76c4e8043b", base_url="https://api.deepseek.com")
-
+# 让 Streamlit 从保险箱里读取 Key
+client = OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
 # ==========================================
 # 2. 核心 Prompt 模板 (把你的设定搬过来)
 # ==========================================
