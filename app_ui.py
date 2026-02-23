@@ -11,7 +11,40 @@ st.set_page_config(page_title="我的数字克隆人", page_icon="🤖", layout=
 # 初始化数据库连接 (连接我们在第二阶段建好的库！)
 import os
 # (确保你已经 import 了 RecursiveCharacterTextSplitter)
+import json
 
+# 1. 定义一个真实的 Python 函数（你的工具）
+# 这里为了演示，我们用模拟数据。你完全可以把它换成真实的免费天气 API
+def get_current_weather(location):
+    print(f"⚙️ 后台正在调用天气函数，查询城市：{location}")
+    weather_data = {
+        "北京": "晴天，气温 5°C，北风3级，有点冷记得穿秋裤",
+        "上海": "阴天，气温 12°C，可能会下小雨",
+        "广州": "晴天，气温 25°C，非常舒适"
+    }
+    # 如果查不到，就返回一个默认提示
+    return weather_data.get(location, f"我这边查不到 {location} 的天气数据。")
+
+# 2. 写给大模型看的“工具说明书”
+tools_config = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_weather",
+            "description": "获取某个城市的当前天气情况",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "城市名称，例如：北京、上海、广州",
+                    }
+                },
+                "required": ["location"],
+            },
+        }
+    }
+]
 @st.cache_resource
 def get_chroma_collection():
     # 连接数据库
@@ -153,16 +186,53 @@ if user_input := st.chat_input("说点什么..."):
         
         with st.spinner("对方正在输入..."):
             try:
+                # 第 1 次呼叫大模型：带上工具说明书
                 response = client.chat.completions.create(
                     model="deepseek-chat",
                     messages=api_messages,
+                    tools=tools_config, # 🌟 告诉它你有工具可用
                     temperature=0.8
                 )
                 
-                ai_answer = response.choices[0].message.content
+                response_message = response.choices[0].message
+                
+                # 🌟 判断大模型是否决定使用工具！
+                if response_message.tool_calls:
+                    tool_call = response_message.tool_calls[0]
+                    
+                    if tool_call.function.name == "get_current_weather":
+                        st.toast("🤖 克隆人正在偷偷使用天气工具...")
+                        
+                        # 解析大模型传过来的参数（比如城市名）
+                        args = json.loads(tool_call.function.arguments)
+                        city = args.get("location")
+                        
+                        # 执行你写的 Python 函数！
+                        weather_result = get_current_weather(city)
+                        
+                        # 把执行动作和结果塞回历史记录，告诉大模型
+                        api_messages.append(response_message) # 记录模型想调用工具的动作
+                        api_messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": weather_result # 告诉大模型天气结果
+                        })
+                        
+                        # 第 2 次呼叫大模型：让它根据拿到的天气结果，用你的语气组织语言回复！
+                        second_response = client.chat.completions.create(
+                            model="deepseek-chat",
+                            messages=api_messages,
+                            temperature=0.8
+                        )
+                        ai_answer = second_response.choices[0].message.content
+                else:
+                    # 如果大模型觉得没必要用工具，就正常输出文本
+                    ai_answer = response_message.content
+                
+                # 在网页上显示最终回答
                 message_placeholder.markdown(ai_answer)
                 
-                # 把 AI 的回答也存进历史记录
+                # 存入短期记忆
                 st.session_state.messages.append({"role": "assistant", "content": ai_answer})
                 
             except Exception as e:
