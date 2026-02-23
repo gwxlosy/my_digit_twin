@@ -3,6 +3,8 @@ import chromadb
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import OpenAI
 import uuid
+from gtts import gTTS
+import io
 # ==========================================
 # 1. 页面配置与全局初始化
 # ==========================================
@@ -230,10 +232,27 @@ if user_input := st.chat_input("说点什么..."):
                     ai_answer = response_message.content
                 
                 # 在网页上显示最终回答
+               # ===== 这是你原有的代码 =====
+                # 在网页上显示最终回答
                 message_placeholder.markdown(ai_answer)
-                
                 # 存入短期记忆
                 st.session_state.messages.append({"role": "assistant", "content": ai_answer})
+                
+                # ===== 🌟 终极进化：新增的语音播报模块 =====
+                with st.spinner("🎤 克隆人正在发送语音..."):
+                    try:
+                        # 把大模型的文字丢给 gTTS 生成中文发音
+                        tts = gTTS(text=ai_answer, lang='zh-cn')
+                        
+                        # 把音频保存在内存里（不需要下载到硬盘，速度更快）
+                        audio_fp = io.BytesIO()
+                        tts.write_to_fp(audio_fp)
+                        audio_fp.seek(0)
+                        
+                        # 在网页上渲染音频播放器，并设置 autoplay=True 让它自动播放！
+                        st.audio(audio_fp, format="audio/mp3", autoplay=True)
+                    except Exception as e:
+                        st.warning(f"语音接口罢工了: {e}")
                 
             except Exception as e:
                 st.error(f"大脑短路了: {e}")
