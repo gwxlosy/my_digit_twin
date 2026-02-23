@@ -21,7 +21,7 @@ def get_chroma_collection():
     
     # 🌟 核心修复逻辑：如果发现数据库是空的，就当场读取 txt 重新灌入基础记忆
     if collection.count() == 0:
-        st.toast("⏳ 首次在云端启动，正在重建基础记忆库...")
+        print("⏳ 首次在云端启动，正在重建基础记忆库...")
         
         # 你的基础语料文件名
         file_name = "wechat_memory.txt" 
