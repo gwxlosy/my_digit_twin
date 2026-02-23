@@ -9,11 +9,40 @@ import uuid
 st.set_page_config(page_title="我的数字克隆人", page_icon="🤖", layout="centered")
 
 # 初始化数据库连接 (连接我们在第二阶段建好的库！)
+import os
+# (确保你已经 import 了 RecursiveCharacterTextSplitter)
+
 @st.cache_resource
 def get_chroma_collection():
-    db_client = chromadb.PersistentClient(path="./my_clone_db")
-    return db_client.get_collection("my_memory")
-
+    # 连接数据库
+    db_client = chromadb.PersistentClient(path="./my_clone_db_v2")
+    # 这里要用 get_or_create，防止报错
+    collection = db_client.get_or_create_collection("my_memory")
+    
+    # 🌟 核心修复逻辑：如果发现数据库是空的，就当场读取 txt 重新灌入基础记忆
+    if collection.count() == 0:
+        st.toast("⏳ 首次在云端启动，正在重建基础记忆库...")
+        
+        # 你的基础语料文件名
+        file_name = "wechat_memory.txt" 
+        if os.path.exists(file_name):
+            with open(file_name, "r", encoding="utf-8") as f:
+                full_text = f.read()
+            
+            text_splitter = RecursiveCharacterTextSplitter(
+                separators=["---", "\n\n", "\n"], 
+                chunk_size=400,
+                chunk_overlap=0 
+            )
+            chunks = text_splitter.split_text(full_text)
+            ids = [f"base_memory_{i}" for i in range(len(chunks))]
+            
+            collection.add(documents=chunks, ids=ids)
+            print(f"云端基础记忆注入成功，共 {len(chunks)} 条！")
+        else:
+            print("⚠️ 警告：找不到 wechat_memory.txt，克隆人将处于失忆状态！")
+            
+    return collection
 memory_collection = get_chroma_collection()
 
 # 初始化 DeepSeek 客户端
