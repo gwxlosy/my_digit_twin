@@ -2,7 +2,7 @@ import streamlit as st
 import chromadb
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import OpenAI
-import os
+import uuid
 # ==========================================
 # 1. 页面配置与全局初始化
 # ==========================================
@@ -12,33 +12,6 @@ st.set_page_config(page_title="我的数字克隆人", page_icon="🤖", layout=
 @st.cache_resource
 def get_chroma_collection():
     db_client = chromadb.PersistentClient(path="./my_clone_db")
-    if db_client.get_collection("my_memory"):
-        return db_client.get_collection("my_memory")
-    collection = db_client.create_collection("my_memory")
-    file_name = "D:\Desktop\\ai_about\\ai_learning_path\\my_robot\\my_brain_data\\wechat_memory.txt" # 替换成你实际的文件名
-    if os.path.exists(file_name):
-        with open(file_name, "r", encoding="utf-8") as f:
-            full_text = f.read()
-    
-    # 🌟 关键点：针对聊天记录的专属切分法
-    # 因为你用了 "---" 或者换行来隔开不同对话，我们优先用这个来切分！
-    # 并且把 overlap 设为 0，防止不同话题的聊天串在一起。
-        text_splitter = RecursiveCharacterTextSplitter(
-            separators=["---", "\n\n", "\n"], 
-            chunk_size=400,
-            chunk_overlap=0 
-        )
-    
-        chunks = text_splitter.split_text(full_text)
-    
-    # 将切好的记忆片段存入 ChromaDB
-        ids = [f"memory_{i}" for i in range(len(chunks))]
-        collection.add(documents=chunks, ids=ids)
-        print(f"✅ 成功注入 {len(chunks)} 段专属记忆！")
-    else:
-        print(f"❌ 找不到文件 {file_name}，请检查文件名和路径！")
-        exit()
-    # 注意这里用 get_collection，因为我们假设数据已经入库了
     return db_client.get_collection("my_memory")
 
 memory_collection = get_chroma_collection()
@@ -48,6 +21,41 @@ memory_collection = get_chroma_collection()
 # 让 Streamlit 从保险箱里读取 Key
 client = OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
 # ==========================================
+
+with st.sidebar:
+    st.header("🧠 记忆注入区 (仅主人可用)")
+    
+    # 用 expander 折叠起来，保持界面整洁
+    with st.expander("➕ 添加新记忆"):
+        admin_pwd = st.text_input("请输入主人密码：", type="password")
+        new_memory = st.text_area("今天发生了什么值得记住的事？", placeholder="例如：今天中午去吃了顿爆辣火锅，肚子疼死了，以后再也不吃了！")
+        
+        if st.button("注入大脑", use_container_width=True):
+            if admin_pwd == st.secrets["ADMIN_PASSWORD"]:
+                if new_memory.strip():
+                    with st.spinner("正在写入神经元..."):
+                        # 1. 切分新记忆 (万一你写了一大段小作文)
+                        text_splitter = RecursiveCharacterTextSplitter(
+                            separators=["\n\n", "\n", "。", "！", "？"], 
+                            chunk_size=400,
+                            chunk_overlap=0 
+                        )
+                        new_chunks = text_splitter.split_text(new_memory)
+                        
+                        # 2. 生成随机的 ID (UUID保证绝不重复)
+                        new_ids = [str(uuid.uuid4()) for _ in new_chunks]
+                        
+                        # 3. 存入 ChromaDB
+                        memory_collection.add(documents=new_chunks, ids=new_ids)
+                        
+                        st.success(f"✅ 成功注入 {len(new_chunks)} 段新记忆！你的克隆人已经变聪明了。")
+                else:
+                    st.warning("总得写点什么吧？")
+            else:
+                st.error("🚫 密码错误！你是谁？")
+    
+    st.divider()
+    st.caption("提示：在左侧注入新记忆后，直接在右侧提问测试。")
 # 2. 核心 Prompt 模板 (把你的设定搬过来)
 # ==========================================
 def get_system_prompt(retrieved_context):
