@@ -6,3 +6,4 @@ pypdf
 sentence-transformers
 langchain-text-splitters
 gTTs
+datetime
